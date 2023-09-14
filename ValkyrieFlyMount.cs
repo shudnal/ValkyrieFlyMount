@@ -13,7 +13,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.0";
+        const string pluginVersion = "1.0.1";
 
         private Harmony _harmony;
 
@@ -23,9 +23,9 @@ namespace ValkyrieFlyMount
         private static ConfigEntry<KeyboardShortcut> dismountShortcut;
 
         internal static ValkyrieFlyMount instance;
+        internal static Valkyrie controlledValkyrie;
 
         private static bool isFlyingMountValkyrie = false;
-        private static bool onCooldown = false;
         internal static bool playerDropped = false;
         internal static bool castSlowFall;
         internal static float shiftDownTime;
@@ -108,13 +108,7 @@ namespace ValkyrieFlyMount
             if (isFlyingMountValkyrie)
                 return;
 
-            if (Valkyrie.m_instance != null)
-            {
-                player.Message(MessageHud.MessageType.Center, Localization.instance.Localize("$hud_powernotready"));
-                return;
-            }
-
-            if (onCooldown)
+            if (controlledValkyrie != null)
             {
                 player.Message(MessageHud.MessageType.Center, Localization.instance.Localize("$hud_powernotready"));
                 return;
@@ -139,7 +133,7 @@ namespace ValkyrieFlyMount
             crosshairState = Hud.instance.m_crosshair.enabled;
             Hud.instance.m_crosshair.enabled = false;
 
-            Instantiate(ZNetScene.instance.GetPrefab("Valkyrie"));
+            controlledValkyrie = Instantiate(ZNetScene.instance.GetPrefab("Valkyrie")).GetComponent<Valkyrie>();
         }
 
         [HarmonyPatch(typeof(Valkyrie), nameof(Valkyrie.Awake))]
@@ -149,11 +143,6 @@ namespace ValkyrieFlyMount
             {
                 if (!modEnabled.Value) return true;
 
-                if (Player.m_localPlayer.m_firstSpawn) return true;
-
-                if (!isFlyingMountValkyrie) return true;
-
-                Valkyrie.m_instance = __instance;
                 __instance.m_nview = __instance.GetComponent<ZNetView>();
                 __instance.m_animator = __instance.GetComponentInChildren<Animator>();
                 if (!__instance.m_nview.IsOwner())
@@ -161,6 +150,10 @@ namespace ValkyrieFlyMount
                     __instance.enabled = false;
                     return false;
                 }
+
+                if (Player.m_localPlayer.m_firstSpawn) return true;
+
+                if (!isFlyingMountValkyrie) return true;
 
                 if (!__instance.gameObject.TryGetComponent<Rigidbody>(out _))
                 {
@@ -205,8 +198,6 @@ namespace ValkyrieFlyMount
 
                 LogInfo("Setting up valkyrie " + __instance.transform.position.ToString() + "   " + ZNet.instance.GetReferencePosition().ToString());
 
-                onCooldown = true;
-
                 return false;
             }
         }
@@ -217,6 +208,8 @@ namespace ValkyrieFlyMount
             private static void Prefix(Valkyrie __instance)
             {
                 if (!modEnabled.Value) return;
+
+                if (__instance != controlledValkyrie) return;
 
                 if (isFlyingMountValkyrie && (dismountShortcut.Value.IsDown() || 
                                               ZInput.GetButton("Use") && ZInput.GetButton("AltPlace") || 
@@ -233,6 +226,8 @@ namespace ValkyrieFlyMount
             private static bool Prefix(Valkyrie __instance, float dt)
             {
                 if (!modEnabled.Value) return true;
+
+                if (__instance != controlledValkyrie) return true;
 
                 if (!isFlyingMountValkyrie)
                     return true;
@@ -310,6 +305,8 @@ namespace ValkyrieFlyMount
             {
                 if (!modEnabled.Value) return;
 
+                if (__instance != controlledValkyrie) return;
+
                 Vector3 pos = __instance.transform.position;
                 if (ZoneSystem.instance.GetGroundHeight(pos, out float height2))
                 {
@@ -325,6 +322,8 @@ namespace ValkyrieFlyMount
             private static void Postfix(Valkyrie __instance)
             {
                 if (!modEnabled.Value) return;
+
+                if (__instance != controlledValkyrie) return;
 
                 if (isFlyingMountValkyrie)
                 {
@@ -346,19 +345,12 @@ namespace ValkyrieFlyMount
                     __instance.m_flyAwayPoint = Player.m_localPlayer.transform.position + forward * 300f;
                     __instance.m_flyAwayPoint.y = Mathf.Max(ZoneSystem.instance.GetGroundHeight(__instance.m_flyAwayPoint), ZoneSystem.instance.m_waterLevel) + Mathf.Max(Player.m_localPlayer.transform.position.y + 100f, 150f);
                     __instance.m_speed = 15f;
+
+                    controlledValkyrie = null;
                 }
             }
         }
 
-        [HarmonyPatch(typeof(Valkyrie), nameof(Valkyrie.OnDestroy))]
-        public static class Valkyrie_OnDestroy_Taxi
-        {
-            private static void Postfix()
-            {
-                if (!modEnabled.Value) return;
-                onCooldown = false;
-            }
-        }
 
         [HarmonyPatch(typeof(Player), nameof(Player.InCutscene))]
         public static class Player_InCutscene_Taxi
