@@ -62,6 +62,9 @@ extract ValkyrieFlyMount.dll file to your BepInEx\Plugins\ folder
 
 ## Changelog
 
+v 1.0.2
+* fixed skip intro bug
+
 v 1.0.1
 * multi bird multiplayer support
 

@@ -13,7 +13,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.1";
+        const string pluginVersion = "1.0.2";
 
         private Harmony _harmony;
 
@@ -134,6 +134,18 @@ namespace ValkyrieFlyMount
             Hud.instance.m_crosshair.enabled = false;
 
             controlledValkyrie = Instantiate(ZNetScene.instance.GetPrefab("Valkyrie")).GetComponent<Valkyrie>();
+        }
+
+        [HarmonyPatch(typeof(Menu), nameof(Menu.OnSkip))]
+        public static class Menu_OnSkip_IntroSkip
+        {
+            private static void Prefix()
+            {
+                if ((bool)controlledValkyrie)
+                {
+                    controlledValkyrie.DropPlayer(destroy: true);
+                }
+            }
         }
 
         [HarmonyPatch(typeof(Valkyrie), nameof(Valkyrie.Awake))]
@@ -350,7 +362,6 @@ namespace ValkyrieFlyMount
                 }
             }
         }
-
 
         [HarmonyPatch(typeof(Player), nameof(Player.InCutscene))]
         public static class Player_InCutscene_Taxi
