@@ -62,6 +62,9 @@ extract ValkyrieFlyMount.dll file to your BepInEx\Plugins\ folder
 
 ## Changelog
 
+v 1.0.3
+* patch 0.217.22
+
 v 1.0.2
 * fixed skip intro bug
 

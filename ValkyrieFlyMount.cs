@@ -13,7 +13,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.2";
+        const string pluginVersion = "1.0.3";
 
         private Harmony _harmony;
 
