@@ -1,6 +1,6 @@
 {
   "name": "ValkyrieFlyMount",
-  "version_number": "1.0.3",
+  "version_number": "1.0.4",
   "website_url": "https://github.com/shudnal/ValkyrieFlyMount",
   "description": "Use the Valkyrie as your fly mount. You can even fight from her.",
   "dependencies": ["denikson-BepInExPack_Valheim-5.4.2200"]

@@ -13,7 +13,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.3";
+        const string pluginVersion = "1.0.4";
 
         private Harmony _harmony;
 
@@ -223,7 +223,8 @@ namespace ValkyrieFlyMount
 
                 if (__instance != controlledValkyrie) return;
 
-                if (isFlyingMountValkyrie && (dismountShortcut.Value.IsDown() || 
+                if (isFlyingMountValkyrie && (mountShortcut.Value.IsDown() ||
+                                              dismountShortcut.Value.IsDown() || 
                                               ZInput.GetButton("Use") && ZInput.GetButton("AltPlace") || 
                                               ZInput.GetButton("JoyUse") && ZInput.GetButton("JoyAltPlace")))
                 {
