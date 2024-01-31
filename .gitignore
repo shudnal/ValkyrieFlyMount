@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /thunderstore/ValkyrieFlyMount.dll
 /thunderstore/ValkyrieFlyMount.zip
+/package/thunderstore/ValkyrieFlyMount/ValkyrieFlyMount.dll
+/package/thunderstore/ValkyrieFlyMount.zip
