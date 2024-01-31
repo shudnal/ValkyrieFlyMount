@@ -59,20 +59,3 @@ extract ValkyrieFlyMount.dll file to your BepInEx\Plugins\ folder
 
 ## Mirrors
 [Nexus](https://www.nexusmods.com/valheim/mods/2520)
-
-## Changelog
-
-v 1.0.4
-* new update support and dismount by mount shortcut
-
-v 1.0.3
-* patch 0.217.22
-
-v 1.0.2
-* fixed skip intro bug
-
-v 1.0.1
-* multi bird multiplayer support
-
-v 1.0.0
-* Initial release

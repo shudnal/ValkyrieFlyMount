@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Reflection;
 using BepInEx;
-using BepInEx.Logging;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace ValkyrieFlyMount
 {
@@ -13,9 +13,9 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.4";
+        const string pluginVersion = "1.0.5";
 
-        private Harmony _harmony;
+        private readonly Harmony harmony = new Harmony(pluginID);
 
         private static ConfigEntry<bool> modEnabled;
         private static ConfigEntry<bool> loggingEnabled;
@@ -31,28 +31,30 @@ namespace ValkyrieFlyMount
         internal static float shiftDownTime;
         internal static bool shiftStaminaDepleted;
 
-        internal static DateTime flightStarted;
         internal static bool crosshairState;
 
         private void Awake()
         {
-            if (IsDedicated())
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
             {
-                instance.Logger.LogWarning("Dedicated server. Loading skipped.");
+                Logger.LogWarning("Dedicated server. Loading skipped.");
                 return;
             }
 
-            _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), pluginID);
+            harmony.PatchAll();
 
             instance = this;
 
             ConfigInit();
+
+            Game.isModded = true;
         }
 
         private void OnDestroy()
         {
             Config.Save();
-            _harmony?.UnpatchSelf();
+            instance = null;
+            harmony?.UnpatchSelf();
         }
 
         public static void LogInfo(object data)
@@ -73,16 +75,15 @@ namespace ValkyrieFlyMount
 
         public void LateUpdate()
         {
-            if (!modEnabled.Value) return;
+            if (!modEnabled.Value)
+                return;
 
-            if (Player.m_localPlayer == null) return;
+            if (Player.m_localPlayer == null)
+                return;
 
-            if (mountShortcut.Value.IsDown() || 
-                ZInput.GetButton("AltPlace") && ZInput.GetButton("Crouch") && ZInput.GetButton("Jump") ||
-                ZInput.GetButton("JoyAltPlace") && ZInput.GetButton("JoyCrouch") && ZInput.GetButton("JoyJump"))
-            {
+            if (mountShortcut.Value.IsDown() || ZInput.GetButton("AltPlace") && ZInput.GetButton("Crouch") && ZInput.GetButton("Jump") ||
+                                                ZInput.GetButton("JoyAltPlace") && ZInput.GetButton("JoyCrouch") && ZInput.GetButton("JoyJump"))
                 SpawnValkyrie(Player.m_localPlayer);
-            }
         }
         
         public static bool CanOperateValkyrie()
@@ -94,13 +95,6 @@ namespace ValkyrieFlyMount
                     !Console.IsVisible() && !Menu.IsVisible() && TextViewer.instance != null &&
                     !TextViewer.instance.IsVisible() && !TextInput.IsVisible() &&
                     !Minimap.IsOpen() && !GameCamera.InFreeFly() && !StoreGui.IsVisible() && !InventoryGui.IsVisible();
-        }
-
-        public static bool IsDedicated()
-        {
-            var method = typeof(ZNet).GetMethod(nameof(ZNet.IsDedicated), BindingFlags.Public | BindingFlags.Instance);
-            var openDelegate = (Func<ZNet, bool>)Delegate.CreateDelegate(typeof(Func<ZNet, bool>), method);
-            return openDelegate(null);
         }
 
         private void SpawnValkyrie(Player player)
@@ -121,7 +115,6 @@ namespace ValkyrieFlyMount
             }
 
             isFlyingMountValkyrie = true;
-            flightStarted = DateTime.Now;
 
             if (player.m_nview != null && player.m_nview.IsValid())
             {
@@ -163,14 +156,14 @@ namespace ValkyrieFlyMount
                     return false;
                 }
 
-                if (Player.m_localPlayer.m_firstSpawn) return true;
+                if (Player.m_localPlayer.m_firstSpawn)
+                    return true;
 
-                if (!isFlyingMountValkyrie) return true;
+                if (!isFlyingMountValkyrie)
+                    return true;
 
                 if (!__instance.gameObject.TryGetComponent<Rigidbody>(out _))
-                {
                     __instance.gameObject.AddComponent<Rigidbody>().useGravity = false;
-                }
 
                 __instance.m_startPause = 0f;
                 __instance.m_startAltitude = 10f;
@@ -185,6 +178,9 @@ namespace ValkyrieFlyMount
                 position.y += __instance.m_startAltitude;
 
                 __instance.transform.position = position;
+               
+                GameCamera.m_instance.GetCameraPosition(Time.unscaledDeltaTime, out _, out Quaternion rot);
+                __instance.transform.rotation = rot;
 
                 Player.m_localPlayer.m_intro = true;
 
@@ -217,11 +213,13 @@ namespace ValkyrieFlyMount
         [HarmonyPatch(typeof(Valkyrie), nameof(Valkyrie.LateUpdate))]
         public static class Valkyrie_LateUpdate_DismountCommand
         {
-            private static void Prefix(Valkyrie __instance)
+            private static void Postfix(Valkyrie __instance)
             {
-                if (!modEnabled.Value) return;
+                if (!modEnabled.Value)
+                    return;
 
-                if (__instance != controlledValkyrie) return;
+                if (__instance != controlledValkyrie)
+                    return;
 
                 if (isFlyingMountValkyrie && (mountShortcut.Value.IsDown() ||
                                               dismountShortcut.Value.IsDown() || 
@@ -238,14 +236,16 @@ namespace ValkyrieFlyMount
         {
             private static bool Prefix(Valkyrie __instance, float dt)
             {
-                if (!modEnabled.Value) return true;
+                if (!modEnabled.Value)
+                    return true;
 
-                if (__instance != controlledValkyrie) return true;
+                if (__instance != controlledValkyrie)
+                    return true;
 
                 if (!isFlyingMountValkyrie)
                     return true;
 
-                if (!__instance.TryGetComponent<Rigidbody>(out Rigidbody rigidbody))
+                if (!__instance.TryGetComponent(out Rigidbody rigidbody))
                     return true;
 
                 if ((DateTime.Now - ZInput.instance.GetLastInputTimer()).TotalSeconds > 60)
@@ -334,9 +334,11 @@ namespace ValkyrieFlyMount
         {
             private static void Postfix(Valkyrie __instance)
             {
-                if (!modEnabled.Value) return;
+                if (!modEnabled.Value)
+                    return;
 
-                if (__instance != controlledValkyrie) return;
+                if (__instance != controlledValkyrie)
+                    return;
 
                 if (isFlyingMountValkyrie)
                 {
@@ -360,6 +362,18 @@ namespace ValkyrieFlyMount
                     __instance.m_speed = 15f;
 
                     controlledValkyrie = null;
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(Player), nameof(Player.TeleportTo))]
+        public static class Player_TeleportTo_TeleportDrop
+        {
+            private static void Prefix()
+            {
+                if ((bool)controlledValkyrie)
+                {
+                    controlledValkyrie.DropPlayer(destroy: true);
                 }
             }
         }
@@ -577,9 +591,9 @@ namespace ValkyrieFlyMount
         }
         
         [HarmonyPatch(typeof(Hud), nameof(Hud.UpdateCrosshair))]
-        [HarmonyPriority(Priority.Last)]
         public static class Hud_UpdateCrosshair_ShowBowCrosshair
         {
+            [HarmonyPriority(Priority.Last)]
             private static void Prefix(Hud __instance, Player player)
             {
                 if (!modEnabled.Value) return;
