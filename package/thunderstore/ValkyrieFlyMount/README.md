@@ -57,5 +57,10 @@ extract ValkyrieFlyMount.dll file to your BepInEx\Plugins\ folder
 ## Known issues
 * BetterArchery won't let you hide crosshair
 
+## Configurating
+The best way to handle configs is [Configuration Manager](https://thunderstore.io/c/valheim/p/shudnal/ConfigurationManager/).
+
+Or [Official BepInEx Configuration Manager](https://valheim.thunderstore.io/package/Azumatt/Official_BepInEx_ConfigurationManager/).
+
 ## Mirrors
 [Nexus](https://www.nexusmods.com/valheim/mods/2520)

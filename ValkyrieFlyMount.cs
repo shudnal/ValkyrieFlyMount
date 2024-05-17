@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -13,7 +12,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.5";
+        const string pluginVersion = "1.0.6";
 
         private readonly Harmony harmony = new Harmony(pluginID);
 
@@ -33,14 +32,10 @@ namespace ValkyrieFlyMount
 
         internal static bool crosshairState;
 
+        private static readonly int slowFallHash = "SlowFall".GetStableHashCode();
+
         private void Awake()
         {
-            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
-            {
-                Logger.LogWarning("Dedicated server. Loading skipped.");
-                return;
-            }
-
             harmony.PatchAll();
 
             instance = this;
@@ -75,7 +70,7 @@ namespace ValkyrieFlyMount
 
         public void LateUpdate()
         {
-            if (!modEnabled.Value)
+            if (!modEnabled.Value || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null)
                 return;
 
             if (Player.m_localPlayer == null)
@@ -345,10 +340,10 @@ namespace ValkyrieFlyMount
                     isFlyingMountValkyrie = false;
 
                     playerDropped = true;
-                    if (!Player.m_localPlayer.m_seman.HaveStatusEffect("SlowFall"))
+                    if (!Player.m_localPlayer.GetSEMan().HaveStatusEffect(slowFallHash))
                     {
                         castSlowFall = true;
-                        Player.m_localPlayer.m_seman.AddStatusEffect("SlowFall".GetStableHashCode());
+                        Player.m_localPlayer.GetSEMan().AddStatusEffect(slowFallHash);
                         LogInfo("Cast slow fall");
                     }
 
@@ -481,8 +476,8 @@ namespace ValkyrieFlyMount
                 {
                     castSlowFall = false;
                     playerDropped = false;
-                    if (__instance.m_seman.HaveStatusEffect("SlowFall"))
-                        __instance.m_seman.RemoveStatusEffect("SlowFall".GetStableHashCode(), true);
+                    if (__instance.GetSEMan().HaveStatusEffect(slowFallHash))
+                        __instance.GetSEMan().RemoveStatusEffect(slowFallHash, true);
                     LogInfo("Remove slow fall");
                 }
             }
@@ -604,10 +599,8 @@ namespace ValkyrieFlyMount
                 if (crosshairState)
                 {
                     bool showBowCrosshair = player.GetLeftItem() != null && player.GetLeftItem().m_shared.m_itemType == ItemDrop.ItemData.ItemType.Bow;
-                    if (Hud.instance.m_crosshair.enabled != showBowCrosshair)
-                    {
-                        Hud.instance.m_crosshair.enabled = showBowCrosshair;
-                    }
+                    if (__instance.m_crosshair.enabled != showBowCrosshair)
+                        __instance.m_crosshair.enabled = showBowCrosshair;
                 }
             }
         }
@@ -618,7 +611,7 @@ namespace ValkyrieFlyMount
             [HarmonyPriority(Priority.Last)]
             private static void Prefix(ref Player __state)
             {
-                if (!modEnabled.Value) return;
+                if (!modEnabled.Value || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) return;
 
                 if (!isFlyingMountValkyrie)
                     return;
@@ -631,7 +624,7 @@ namespace ValkyrieFlyMount
             [HarmonyPriority(Priority.First)]
             private static void Postfix(Player __state)
             {
-                if (!modEnabled.Value) return;
+                if (!modEnabled.Value || SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) return;
 
                 if (!isFlyingMountValkyrie)
                     return;
