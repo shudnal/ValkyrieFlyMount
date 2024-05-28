@@ -12,7 +12,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.6";
+        const string pluginVersion = "1.0.7";
 
         private readonly Harmony harmony = new Harmony(pluginID);
 
@@ -151,16 +151,12 @@ namespace ValkyrieFlyMount
                     return false;
                 }
 
-                if (Player.m_localPlayer.m_firstSpawn)
-                    return true;
-
                 if (!isFlyingMountValkyrie)
                     return true;
 
                 if (!__instance.gameObject.TryGetComponent<Rigidbody>(out _))
                     __instance.gameObject.AddComponent<Rigidbody>().useGravity = false;
 
-                __instance.m_startPause = 0f;
                 __instance.m_startAltitude = 10f;
                 __instance.m_textDuration = 0f;
                 __instance.m_descentAltitude = 100f;
