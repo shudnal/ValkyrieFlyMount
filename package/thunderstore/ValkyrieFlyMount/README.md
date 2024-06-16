@@ -45,9 +45,9 @@ You will not control the Valkyrie if you are:
  * free flying
  * staring at store
 
-You can press Run button (LeftShift by default) to "run" while spending stamina. More time you "run" more speed you get.
+You can press Run button (LeftShift by default) to "run" while spending stamina.
 
-If you don't touched the controls (nor mouse nore joystick movement nore keyboard clicks, nothing) for 2 min (120 sec) the Valkyrie will be flying you to Start Temple until you touch the controls again.
+If you didn't touch the controls (nor mouse nore joystick movement nore keyboard clicks, nothing) for 2 min (120 sec) the Valkyrie will be flying you to Start Temple until you touch the controls again.
 
 You will go through the objects while flying.
 

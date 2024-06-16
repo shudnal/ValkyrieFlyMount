@@ -21,18 +21,28 @@ namespace ValkyrieFlyMount
         private static ConfigEntry<KeyboardShortcut> mountShortcut;
         private static ConfigEntry<KeyboardShortcut> dismountShortcut;
 
+        private static ConfigEntry<float> maxAltitude;
+        private static ConfigEntry<float> forceMultiplier;
+        private static ConfigEntry<float> rotationMultiplier;
+        private static ConfigEntry<float> verticalAccelerationMultiplier;
+        private static ConfigEntry<float> horizontalAccelerationMultiplier;
+        private static ConfigEntry<float> boostAccelerationMultiplier;
+        private static ConfigEntry<float> forwardAccelerationMultiplier;
+
         internal static ValkyrieFlyMount instance;
         internal static Valkyrie controlledValkyrie;
 
         private static bool isFlyingMountValkyrie = false;
         internal static bool playerDropped = false;
         internal static bool castSlowFall;
-        internal static float shiftDownTime;
-        internal static bool shiftStaminaDepleted;
+        internal static float accelerationMultiplier;
+        internal static bool accelerationStaminaDepleted;
 
         internal static bool crosshairState;
 
         private static readonly int slowFallHash = "SlowFall".GetStableHashCode();
+
+        private static float currentForce = 0f;
 
         private void Awake()
         {
@@ -63,9 +73,17 @@ namespace ValkyrieFlyMount
             Config.Bind("General", "NexusID", 2520, "Nexus mod ID for updates");
 
             modEnabled = Config.Bind("General", "Enabled", defaultValue: true, "Enable the mod.");
-            loggingEnabled = Config.Bind("General", "Logging enabled", defaultValue: true, "Enable logging.");
+            loggingEnabled = Config.Bind("General", "Logging enabled", defaultValue: false, "Enable logging.");
             mountShortcut = Config.Bind("General", "Mount shortcut", defaultValue: new KeyboardShortcut(KeyCode.T, new KeyCode[1] { KeyCode.LeftShift }), "Mount shortcut.");
             dismountShortcut = Config.Bind("General", "Disount shortcut", defaultValue: new KeyboardShortcut(KeyCode.E, new KeyCode[1] { KeyCode.LeftShift }), "Dismount shortcut.");
+
+            maxAltitude = Config.Bind("Misc", "Maximum altitude", defaultValue: 1500f, "Height limit.");
+            forceMultiplier = Config.Bind("Misc", "Force multiplier", defaultValue: 1f, "Multiplier of force applied to move Valkyrie. Basically indirect speed multiplier");
+            rotationMultiplier = Config.Bind("Misc", "Rotation multiplier", defaultValue: 1f, "Multiplier of rotation delta. Basically angular velocity");
+            verticalAccelerationMultiplier = Config.Bind("Misc", "Vertical Acceleration multiplier", defaultValue: 1f, "Multiplier of vertical change of speed on Up and Down movement");
+            horizontalAccelerationMultiplier = Config.Bind("Misc", "Horizontal Acceleration multiplier", defaultValue: 1f, "Multiplier of horizontal change of speed on Left or Right movement");
+            boostAccelerationMultiplier = Config.Bind("Misc", "Boost Acceleration multiplier", defaultValue: 1f, "Multiplier of speed of boost speed increase");
+            forwardAccelerationMultiplier = Config.Bind("Misc", "Forward acceleration multiplier", defaultValue: 1f, "Multiplier of speed of regular movement speed increase");
         }
 
         public void LateUpdate()
@@ -120,6 +138,8 @@ namespace ValkyrieFlyMount
 
             crosshairState = Hud.instance.m_crosshair.enabled;
             Hud.instance.m_crosshair.enabled = false;
+
+            currentForce = 0f;
 
             controlledValkyrie = Instantiate(ZNetScene.instance.GetPrefab("Valkyrie")).GetComponent<Valkyrie>();
         }
@@ -230,6 +250,9 @@ namespace ValkyrieFlyMount
                 if (!modEnabled.Value)
                     return true;
 
+                if (TextViewer.IsShowingIntro())
+                    return true;
+
                 if (__instance != controlledValkyrie)
                     return true;
 
@@ -254,20 +277,29 @@ namespace ValkyrieFlyMount
                     bool movingForward = (ZInput.GetButton("Forward") || ZInput.GetJoyLeftStickY() < 0f);
                     bool movingBackward = (ZInput.GetButton("Backward") || ZInput.GetJoyLeftStickY() > 0f);
 
-                    if (movingForward && !movingBackward)
-                        offset += forward;
-                    else if (!movingForward)
+                    currentForce = Mathf.MoveTowards(currentForce, 0, dt);
+
+                    if (!movingForward && !movingBackward) // Not moving
                         offset += forward / 5;
-                    if (movingBackward && !movingForward)
+                    else if (movingForward && !movingBackward) // Moving forward
+                        currentForce = Mathf.MoveTowards(currentForce, 1, dt * 3 * forwardAccelerationMultiplier.Value);
+                    else if (movingBackward && !movingForward) // Moving backward
                         offset -= forward / 5;
+
+                    offset += forward * currentForce;
+
                     if (ZInput.GetButton("Left") || ZInput.GetJoyLeftStickX() < 0f)
-                        offset -= __instance.transform.right / (movingForward ? 2 : (movingBackward ? 10 : 5));
+                        offset -= __instance.transform.right / (movingForward ? 2 : (movingBackward ? 10 : 5)) * horizontalAccelerationMultiplier.Value;
+
                     if (ZInput.GetButton("Right") || ZInput.GetJoyLeftStickX() > 0f)
-                        offset += __instance.transform.right / (movingForward ? 2 : (movingBackward ? 10 : 5));
+                        offset += __instance.transform.right / (movingForward ? 2 : (movingBackward ? 10 : 5)) * horizontalAccelerationMultiplier.Value;
+
                     if ((ZInput.GetButton("Jump") || ZInput.GetButton("JoyRTrigger")))
-                        offset.y += (movingForward ? 0.8f : (movingBackward ? 0.2f : 0.5f));
+                        offset.y += (movingForward ? 0.8f : (movingBackward ? 0.2f : 0.5f)) * verticalAccelerationMultiplier.Value;
+
                     if (ZInput.GetButton("Crouch") || ZInput.GetButton("JoyLTrigger"))
-                        offset.y -= (movingForward ? 0.8f : (movingBackward ? 0.2f : 0.5f));
+                        offset.y -= (movingForward ? 0.8f : (movingBackward ? 0.2f : 0.5f)) * verticalAccelerationMultiplier.Value;
+
                     if (offset.magnitude > 1.0f)
                         offset.Normalize();
                 }
@@ -276,20 +308,20 @@ namespace ValkyrieFlyMount
                     offset += forward / 5;
                 }
 
-                shiftStaminaDepleted = shiftStaminaDepleted || !Player.m_localPlayer.HaveStamina();
+                accelerationStaminaDepleted = accelerationStaminaDepleted || !Player.m_localPlayer.HaveStamina();
 
-                bool nitro = (ZInput.GetButton("Run") || ZInput.GetButton("JoyRun"));
-                if (nitro)
-                    shiftDownTime += dt;
+                bool boost = (ZInput.GetButton("Run") || ZInput.GetButton("JoyRun"));
+                if (boost)
+                    accelerationMultiplier = Mathf.MoveTowards(accelerationMultiplier, 1f, boostAccelerationMultiplier.Value * dt / 10);
                 else
                 {
-                    shiftDownTime = 0f;
-                    shiftStaminaDepleted = false;
+                    accelerationMultiplier = Mathf.MoveTowards(accelerationMultiplier, 0f, dt);
+                    accelerationStaminaDepleted = false;
                 }
 
-                float shift = 15f * (nitro && !shiftStaminaDepleted ? 1.5f + Mathf.Min(1f, shiftDownTime / 10) : 1);
+                float acceleration = boost && !accelerationStaminaDepleted ? 1.5f + accelerationMultiplier : 1;
 
-                Vector3 force = Vector3.Lerp(Vector3.zero, offset * shift, 1f) - rigidbody.velocity;
+                Vector3 force = 15f * offset * acceleration * forceMultiplier.Value - rigidbody.velocity;
 
                 if (force.magnitude > 15f)
                     force = force.normalized * 15f;
@@ -298,7 +330,7 @@ namespace ValkyrieFlyMount
 
                 GameCamera.m_instance.GetCameraPosition(dt, out _, out Quaternion rot);
 
-                Quaternion quaternion = Quaternion.RotateTowards(__instance.transform.rotation, rot, __instance.m_turnRate * 15f * dt);
+                Quaternion quaternion = Quaternion.RotateTowards(__instance.transform.rotation, rot, __instance.m_turnRate * 15f * dt * rotationMultiplier.Value);
                 
                 __instance.transform.rotation = quaternion;
 
@@ -307,14 +339,16 @@ namespace ValkyrieFlyMount
 
             private static void Postfix(Valkyrie __instance)
             {
-                if (!modEnabled.Value) return;
+                if (!modEnabled.Value)
+                    return;
 
-                if (__instance != controlledValkyrie) return;
+                if (__instance != controlledValkyrie)
+                    return;
 
                 Vector3 pos = __instance.transform.position;
                 if (ZoneSystem.instance.GetGroundHeight(pos, out float height2))
                 {
-                    pos.y = Mathf.Min(Mathf.Max(pos.y, Mathf.Max(height2, ZoneSystem.instance.m_waterLevel) + 5f), 1000f);
+                    pos.y = Mathf.Min(Mathf.Max(pos.y, Mathf.Max(height2, ZoneSystem.instance.m_waterLevel) + 5f), maxAltitude.Value);
                     __instance.transform.position = pos;
                 }
             }

@@ -1,17 +1,21 @@
-v 1.0.6
+# 1.0.7
+* valkyrie movement made smoother (speed changes gradually)
+* configurable height limit, rotation speed, various movement multipliers
+
+# 1.0.6
 * Ashlands
 
-v 1.0.4
+# 1.0.4
 * new update support and dismount by mount shortcut
 
-v 1.0.3
+# 1.0.3
 * patch 0.217.22
 
-v 1.0.2
+# 1.0.2
 * fixed skip intro bug
 
-v 1.0.1
+# 1.0.1
 * multi bird multiplayer support
 
-v 1.0.0
+# 1.0.0
 * Initial release

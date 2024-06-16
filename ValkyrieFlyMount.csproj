@@ -86,10 +86,13 @@
   <PropertyGroup>
     <PostBuildEvent>xcopy "$(TargetDir)\$(TargetFileName)" "$(ProjectDir)package\thunderstore\$(SolutionName)\" /q /y /i
 
+echo Copy to thunderstore folder
 if $(ConfigurationName) == Debug (powershell Compress-Archive -Path '$(ProjectDir)\package\thunderstore\$(SolutionName)\*' -DestinationPath '$(ProjectDir)\package\thunderstore\$(SolutionName).zip' -Force)
 
+echo Copy to plugins folder
 xcopy "$(TargetDir)\$(TargetFileName)" "F:\Steam\steamapps\common\Valheim\BepInEx\plugins\" /q /y /i
 
-xcopy "$(TargetDir)\$(TargetFileName)" "C:\Users\Suden\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\beta\BepInEx\plugins\shudnal-ValkyrieFlyMount\" /q /y /i</PostBuildEvent>
+echo Copy to r2 folder
+xcopy "$(TargetDir)\$(TargetFileName)" "C:\Users\Suden\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\beta\BepInEx\plugins\shudnal-$(SolutionName)\" /q /y /i</PostBuildEvent>
   </PropertyGroup>
 </Project>
