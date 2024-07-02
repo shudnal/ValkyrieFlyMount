@@ -12,7 +12,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.7";
+        const string pluginVersion = "1.0.8";
 
         private readonly Harmony harmony = new Harmony(pluginID);
 
@@ -20,6 +20,9 @@ namespace ValkyrieFlyMount
         private static ConfigEntry<bool> loggingEnabled;
         private static ConfigEntry<KeyboardShortcut> mountShortcut;
         private static ConfigEntry<KeyboardShortcut> dismountShortcut;
+        
+        private static ConfigEntry<KeyboardShortcut> hoverShortcut;
+        private static ConfigEntry<bool> hoveringStoppedByMoving;
 
         private static ConfigEntry<float> maxAltitude;
         private static ConfigEntry<float> forceMultiplier;
@@ -37,6 +40,7 @@ namespace ValkyrieFlyMount
         internal static bool castSlowFall;
         internal static float accelerationMultiplier;
         internal static bool accelerationStaminaDepleted;
+        internal static bool isHovering = false;
 
         internal static bool crosshairState;
 
@@ -76,6 +80,10 @@ namespace ValkyrieFlyMount
             loggingEnabled = Config.Bind("General", "Logging enabled", defaultValue: false, "Enable logging.");
             mountShortcut = Config.Bind("General", "Mount shortcut", defaultValue: new KeyboardShortcut(KeyCode.T, new KeyCode[1] { KeyCode.LeftShift }), "Mount shortcut.");
             dismountShortcut = Config.Bind("General", "Disount shortcut", defaultValue: new KeyboardShortcut(KeyCode.E, new KeyCode[1] { KeyCode.LeftShift }), "Dismount shortcut.");
+            
+            hoverShortcut = Config.Bind("Hovering", "Hovering shortcut", defaultValue: new KeyboardShortcut(KeyCode.T), "Hovering shortcut. Press while on valkyrie to stop moving forward automatically.");
+            hoveringStoppedByMoving = Config.Bind("Hovering", "Hovering stopped by moving", defaultValue: true, "If true - moving valkyrie will resume flying forward." +
+                                                                                                      "\nIf false - only pressing hovering shortcut again will start valkyrie flying forward automatically.");
 
             maxAltitude = Config.Bind("Misc", "Maximum altitude", defaultValue: 1500f, "Height limit.");
             forceMultiplier = Config.Bind("Misc", "Force multiplier", defaultValue: 1f, "Multiplier of force applied to move Valkyrie. Basically indirect speed multiplier");
@@ -140,6 +148,7 @@ namespace ValkyrieFlyMount
             Hud.instance.m_crosshair.enabled = false;
 
             currentForce = 0f;
+            isHovering = false;
 
             controlledValkyrie = Instantiate(ZNetScene.instance.GetPrefab("Valkyrie")).GetComponent<Valkyrie>();
         }
@@ -147,12 +156,14 @@ namespace ValkyrieFlyMount
         [HarmonyPatch(typeof(Menu), nameof(Menu.OnSkip))]
         public static class Menu_OnSkip_IntroSkip
         {
-            private static void Prefix()
+            private static bool Prefix(Menu __instance)
             {
-                if ((bool)controlledValkyrie)
-                {
-                    controlledValkyrie.DropPlayer(destroy: true);
-                }
+                if (!(bool)controlledValkyrie)
+                    return true;
+
+                __instance.Hide();
+                controlledValkyrie.DropPlayer(destroy: false);
+                return false;
             }
         }
 
@@ -262,31 +273,29 @@ namespace ValkyrieFlyMount
                 if (!__instance.TryGetComponent(out Rigidbody rigidbody))
                     return true;
 
-                if ((DateTime.Now - ZInput.instance.GetLastInputTimer()).TotalSeconds > 60)
+                if (!isHovering && (DateTime.Now - ZInput.instance.GetLastInputTimer()).TotalSeconds > 60)
                 {
                     // Attempt to travel to spawn point on inactivity
                     return true;
                 }
 
-                Vector3 offset = Vector3.zero;
+                isHovering ^= hoverShortcut.Value.IsDown();
 
                 Vector3 forward = __instance.transform.forward;
+
+                Vector3 offset = isHovering ? Vector3.zero : forward / 4;
+                
+                currentForce = Mathf.MoveTowards(currentForce, 0, dt);
 
                 if (CanOperateValkyrie())
                 {
                     bool movingForward = (ZInput.GetButton("Forward") || ZInput.GetJoyLeftStickY() < 0f);
                     bool movingBackward = (ZInput.GetButton("Backward") || ZInput.GetJoyLeftStickY() > 0f);
 
-                    currentForce = Mathf.MoveTowards(currentForce, 0, dt);
-
-                    if (!movingForward && !movingBackward) // Not moving
-                        offset += forward / 5;
-                    else if (movingForward && !movingBackward) // Moving forward
+                    if (movingForward && !movingBackward) // Moving forward
                         currentForce = Mathf.MoveTowards(currentForce, 1, dt * 3 * forwardAccelerationMultiplier.Value);
                     else if (movingBackward && !movingForward) // Moving backward
-                        offset -= forward / 5;
-
-                    offset += forward * currentForce;
+                        offset -= forward / 4;
 
                     if (ZInput.GetButton("Left") || ZInput.GetJoyLeftStickX() < 0f)
                         offset -= __instance.transform.right / (movingForward ? 2 : (movingBackward ? 10 : 5)) * horizontalAccelerationMultiplier.Value;
@@ -300,13 +309,14 @@ namespace ValkyrieFlyMount
                     if (ZInput.GetButton("Crouch") || ZInput.GetButton("JoyLTrigger"))
                         offset.y -= (movingForward ? 0.8f : (movingBackward ? 0.2f : 0.5f)) * verticalAccelerationMultiplier.Value;
 
-                    if (offset.magnitude > 1.0f)
-                        offset.Normalize();
+                    if (hoveringStoppedByMoving.Value && (movingForward || movingBackward))
+                        isHovering = false;
                 }
-                else
-                {
-                    offset += forward / 5;
-                }
+
+                offset += forward * currentForce;
+
+                if (offset.magnitude > 1.0f)
+                    offset.Normalize();
 
                 accelerationStaminaDepleted = accelerationStaminaDepleted || !Player.m_localPlayer.HaveStamina();
 

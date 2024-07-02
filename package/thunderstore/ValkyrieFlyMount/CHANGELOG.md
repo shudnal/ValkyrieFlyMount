@@ -1,3 +1,6 @@
+# 1.0.8
+* hovering
+
 # 1.0.7
 * valkyrie movement made smoother (speed changes gradually)
 * configurable height limit, rotation speed, various movement multipliers
