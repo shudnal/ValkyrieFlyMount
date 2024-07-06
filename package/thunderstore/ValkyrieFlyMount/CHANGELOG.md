@@ -1,3 +1,6 @@
+# 1.0.9
+* returned and made configurable option to teleport to bed using menu Skip intro button
+
 # 1.0.8
 * hovering
 

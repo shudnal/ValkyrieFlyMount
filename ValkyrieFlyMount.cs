@@ -12,7 +12,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.8";
+        const string pluginVersion = "1.0.9";
 
         private readonly Harmony harmony = new Harmony(pluginID);
 
@@ -20,7 +20,8 @@ namespace ValkyrieFlyMount
         private static ConfigEntry<bool> loggingEnabled;
         private static ConfigEntry<KeyboardShortcut> mountShortcut;
         private static ConfigEntry<KeyboardShortcut> dismountShortcut;
-        
+        private static ConfigEntry<bool> menuTeleportOnSkip;
+
         private static ConfigEntry<KeyboardShortcut> hoverShortcut;
         private static ConfigEntry<bool> hoveringStoppedByMoving;
 
@@ -80,7 +81,8 @@ namespace ValkyrieFlyMount
             loggingEnabled = Config.Bind("General", "Logging enabled", defaultValue: false, "Enable logging.");
             mountShortcut = Config.Bind("General", "Mount shortcut", defaultValue: new KeyboardShortcut(KeyCode.T, new KeyCode[1] { KeyCode.LeftShift }), "Mount shortcut.");
             dismountShortcut = Config.Bind("General", "Disount shortcut", defaultValue: new KeyboardShortcut(KeyCode.E, new KeyCode[1] { KeyCode.LeftShift }), "Dismount shortcut.");
-            
+            menuTeleportOnSkip = Config.Bind("General", "Teleport to bed on menu skip", defaultValue: false, "Teleport to current spawn point when using Skip intro menu button.");
+
             hoverShortcut = Config.Bind("Hovering", "Hovering shortcut", defaultValue: new KeyboardShortcut(KeyCode.T), "Hovering shortcut. Press while on valkyrie to stop moving forward automatically.");
             hoveringStoppedByMoving = Config.Bind("Hovering", "Hovering stopped by moving", defaultValue: true, "If true - moving valkyrie will resume flying forward." +
                                                                                                       "\nIf false - only pressing hovering shortcut again will start valkyrie flying forward automatically.");
@@ -161,9 +163,10 @@ namespace ValkyrieFlyMount
                 if (!(bool)controlledValkyrie)
                     return true;
 
-                __instance.Hide();
-                controlledValkyrie.DropPlayer(destroy: false);
-                return false;
+                __instance.Hide(); 
+                controlledValkyrie.DropPlayer(destroy: menuTeleportOnSkip.Value);
+                
+                return menuTeleportOnSkip.Value;
             }
         }
 
