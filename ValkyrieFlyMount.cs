@@ -2,6 +2,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
+using SoftReferenceableAssets;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -12,7 +13,7 @@ namespace ValkyrieFlyMount
     {
         const string pluginID = "shudnal.ValkyrieFlyMount";
         const string pluginName = "Valkyrie Fly Mount";
-        const string pluginVersion = "1.0.9";
+        const string pluginVersion = "1.0.10";
 
         private readonly Harmony harmony = new Harmony(pluginID);
 
@@ -35,6 +36,8 @@ namespace ValkyrieFlyMount
 
         internal static ValkyrieFlyMount instance;
         internal static Valkyrie controlledValkyrie;
+
+        internal static SoftReferenceableAssets.SoftReference<GameObject> valkyriePrefab => Player.m_localPlayer.m_valkyrie;
 
         private static bool isFlyingMountValkyrie = false;
         internal static bool playerDropped = false;
@@ -152,7 +155,11 @@ namespace ValkyrieFlyMount
             currentForce = 0f;
             isHovering = false;
 
-            controlledValkyrie = Instantiate(ZNetScene.instance.GetPrefab("Valkyrie")).GetComponent<Valkyrie>();
+            valkyriePrefab.Load();
+            GameObject valkyrie = Instantiate(valkyriePrefab.Asset);
+            valkyrie.GetComponent<ZNetView>().HoldReferenceTo((IReferenceCounted)(object)valkyriePrefab);
+            controlledValkyrie = valkyrie.GetComponent<Valkyrie>();
+            valkyriePrefab.Release();
         }
 
         [HarmonyPatch(typeof(Menu), nameof(Menu.OnSkip))]
